@@ -1,8 +1,7 @@
-// api/draft.js
 export default async function handler(req, res) {
-    // --- เพิ่มส่วนนี้เข้าไป ---
+    // --- ตั้งค่า CORS เพื่อให้ Extension เข้าถึงได้ ---
     res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Origin', '*'); // หรือใส่ 'https://chat.line.biz' เพื่อความปลอดภัย
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
@@ -10,13 +9,12 @@ export default async function handler(req, res) {
         res.status(200).end();
         return;
     }
-    // ------------------------
 
     const { device_id, history, adminDraft } = req.body;
 
     try {
-        // --- ส่วนที่ 1: ตรวจสอบสิทธิ์จาก Google Sheet (ID ใน Column A) ---
-        const SHEET_ID = '1UvmZTMn_0l7fC1J0QEg8slvoyonUGDtcMcitqT7t5r4'; // *** เปลี่ยนเป็น ID ของคุณ ***
+        // --- ส่วนที่ 1: ตรวจสอบสิทธิ์จาก Google Sheet ---
+        const SHEET_ID = '1UvmZTMn_0l7fC1J0QEg8slvoyonUGDtcMcitqT7t5r4'; 
         const sheetUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
         
         const sheetResponse = await fetch(sheetUrl);
@@ -32,8 +30,8 @@ export default async function handler(req, res) {
             });
         }
 
-        // --- ส่วนที่ 2: System Instruction (เป๊ะตามที่คุณกำหนด) ---
-    const systemInstruction = `คุณคือผู้ช่วยแอดมินร้าน EC MALL (ec-mall.com) ภารกิจคือ "เสริมสิ่งที่ขาด" เพื่อปิดการขาย โดยห้ามพูดซ้ำเรื่องที่แจ้งไปแล้วในแชท
+        // --- ส่วนที่ 2: System Instruction (ตามที่คุณกำหนดเป๊ะๆ) ---
+        const systemInstruction = `คุณคือผู้ช่วยแอดมินร้าน EC MALL (ec-mall.com) ภารกิจคือ "เสริมสิ่งที่ขาด" เพื่อปิดการขาย โดยห้ามพูดซ้ำเรื่องที่แจ้งไปแล้วในแชท
 
     กฎหลักในการตอบ:
     1. **กรณีแนะนำสินค้า (สำคัญมาก)**: ถ้าลูกค้าถามหากล้องประเภทใดก็ตามแบบกว้างๆ หรือยังไม่ได้ระบุรุ่นที่แน่นอน ให้แจ้งว่าขอแจ้งรายละเอียด และราคาสินค้าก่อน ดังนี้
@@ -49,18 +47,20 @@ export default async function handler(req, res) {
     - **ห้ามเล่นละคร**: ร่างเฉพาะ "ข้อความที่แอดมินต้องตอบถัดไป" เพียงข้อความเดียวเท่านั้น ห้ามสมมติบทสนทนาโต้ตอบกันเอง
     - **EDITOR ROLE**: หากแอดมินพิมพ์ร่างข้อความไว้ ให้ยึดเจตนานั้นเป็นหลักและนำไปร้อยเรียงเข้ากับบริบทแชทให้เนียนที่สุด โดยไม่พูดซ้ำเรื่องเก่า`;
 
-    // แยก Logic กรณีมีข้อความใน Textbox และไม่มี
-    if (adminDraft && adminDraft.trim().length > 0) {
-        userPrompt = `[ประวัติแชทล่าสุด]:\n${history}\n\n` +
-                     `[สาระสำคัญที่แอดมินร่างไว้]: "${adminDraft}"\n\n` +
-                     `คำสั่ง: นำสาระสำคัญที่แอดมินร่างไว้มาขยายความและเกลาให้สละสลวยตามกฎ 6 ข้อ ` +
-                     `โดยต้องพิจารณาบริบทแชทเพื่อไม่ให้สื่อสารซ้ำซ้อน และตอบกลับเพียงข้อความเดียวเท่านั้น:`;
-    } else {
-        userPrompt = `[ประวัติแชทล่าสุด]:\n${history}\n\n` +
-                     `คำสั่ง: วิเคราะห์สถานการณ์และร่างข้อความตอบกลับถัดไปเพียงข้อความเดียวตามกฎ 6 ข้อ ` +
-                     `(หากแชทจบแล้วหรือยังไม่จำเป็นต้องตอบให้ส่งค่าว่าง):`;
-    }
+        // --- ส่วนที่ 3: เตรียม User Prompt (ตาม Logic เดิม) ---
+        let userPrompt = ""; // ประกาศตัวแปรเพื่อป้องกัน Error
+        if (adminDraft && adminDraft.trim().length > 0) {
+            userPrompt = `[ประวัติแชทล่าสุด]:\n${history}\n\n` +
+                         `[สาระสำคัญที่แอดมินร่างไว้]: "${adminDraft}"\n\n` +
+                         `คำสั่ง: นำสาระสำคัญที่แอดมินร่างไว้มาขยายความและเกลาให้สละสลวยตามกฎ 6 ข้อ ` +
+                         `โดยต้องพิจารณาบริบทแชทเพื่อไม่ให้สื่อสารซ้ำซ้อน และตอบกลับเพียงข้อความเดียวเท่านั้น:`;
+        } else {
+            userPrompt = `[ประวัติแชทล่าสุด]:\n${history}\n\n` +
+                         `คำสั่ง: วิเคราะห์สถานการณ์และร่างข้อความตอบกลับถัดไปเพียงข้อความเดียวตามกฎ 6 ข้อ ` +
+                         `(หากแชทจบแล้วหรือยังไม่จำเป็นต้องตอบให้ส่งค่าว่าง):`;
+        }
 
+        // --- ส่วนที่ 4: เรียก OpenAI API ---
         const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: { 
@@ -80,9 +80,11 @@ export default async function handler(req, res) {
         const data = await aiResponse.json();
         const result = data.choices[0]?.message?.content || "";
         
+        // ส่งค่ากลับไปที่ Extension
         res.status(200).json({ suggestion: (result.includes("ค่าว่าง") || result.trim() === "") ? "" : result });
 
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 }
