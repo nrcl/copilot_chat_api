@@ -6,7 +6,7 @@ export default async function handler(req, res) {
 
     try {
         // --- ส่วนที่ 1: ตรวจสอบสิทธิ์จาก Google Sheet (ID ใน Column A) ---
-        const SHEET_ID = 'YOUR_GOOGLE_SHEET_ID_HERE'; // *** เปลี่ยนเป็น ID ของคุณ ***
+        const SHEET_ID = '1UvmZTMn_0l7fC1J0QEg8slvoyonUGDtcMcitqT7t5r4'; // *** เปลี่ยนเป็น ID ของคุณ ***
         const sheetUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
         
         const sheetResponse = await fetch(sheetUrl);
